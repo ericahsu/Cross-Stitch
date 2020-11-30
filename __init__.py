@@ -1,3 +1,5 @@
+# Erica Hsu, 11/30/2020
+
 # cmu_112_graphics downloaded from 15-112 course website
 from cmu_112_graphics import *
 import pandas as pd
@@ -39,8 +41,12 @@ class StyleMode(Mode):
         if event.x >= 500 and event.x <= 700 \
             and event.y >= 200 and event.y <= 250:
             mode.app.setActiveMode(mode.app.urlAndPathMode)
+
 class UrlAndPathMode(Mode):
     def appStarted(mode):
+        # Url or Path
+        mode.urlOrPath = None
+
         # DMC Table
         mode.dmcTable = pd.read_csv('dmctable.csv')
         mode.rgb = mode.dmcTable['RGB']
@@ -52,10 +58,11 @@ class UrlAndPathMode(Mode):
         mode.image2 = mode.scaleImage(mode.image1, 2/3)
         mode.countOfRgb = {}
         mode.dmcOfImage = {}
-        #mode.mapOfRgbValues()
-        mode.threads = None
+        mode.threads = []
 
-    def mapOfRgbValues(mode):
+    # Creates a 2D list of the rgb values in a given image, pixelates the image,
+    # and returns the threads needed
+    def mapOfRgbValues(mode, image):
         mode.image1 = mode.image1.convert('RGB')
         mode.image2 = Image.new(mode='RGB', size=mode.image1.size)
 
@@ -65,6 +72,7 @@ class UrlAndPathMode(Mode):
         result.save('result.png')
         mapOfRgb = []
 
+        # 2D list of rgb values in rows and columns
         for x in range(100):
             row = []
             for y in range(100):
@@ -79,7 +87,8 @@ class UrlAndPathMode(Mode):
                     mode.countOfRgb[y] += 1
                 else:
                     mode.countOfRgb[y] = 1
-        mode.threads = []
+
+        # Finds all the necessary threads
         for x in mode.countOfRgb:
             index, rgb = mode.findMinDiff(x, mode.rgb)
             numberAndName = mode.dmc[index] + ' ' + mode.colorName[index]
@@ -94,6 +103,8 @@ class UrlAndPathMode(Mode):
         totalDiff = diffr + diffg + diffb
         return totalDiff
 
+    # Given a rgb value, compare it to the list of rgb values in the rgbTable 
+    # and return the closest match
     def findMinDiff(mode, rgb1, rgbTable):
         minimum = None
         closest = None
@@ -108,73 +119,39 @@ class UrlAndPathMode(Mode):
                 minIndex = index
         return minIndex, closest
 
+    def userInput(mode):
+        mode.urlOrPath = simpledialog.askstring('getUserInput', "url or path")
+        print(mode.urlOrPath)
+        return mode.urlOrPath
+
     def redrawAll(mode, canvas):
         canvas.create_rectangle(0, 0, mode.width, mode.height, fill = "powder blue")
         canvas.create_text(mode.width/2, mode.height/4, text = "Step 2: Type in the url or path to your image", font = "Verdana 30")
-       
-        
-        
-
-class GameMode(Mode):
-    def appStarted(mode):
-        mode.score = 0
-        mode.randomizeDot()
-
-    def randomizeDot(mode):
-        mode.x = random.randint(20, mode.width-20)
-        mode.y = random.randint(20, mode.height-20)
-        mode.r = random.randint(10, 20)
-        mode.color = random.choice(['red', 'orange', 'yellow', 'green', 'blue'])
-        mode.dx = random.choice([+1,-1])*random.randint(3,6)
-        mode.dy = random.choice([+1,-1])*random.randint(3,6)
-
-    def moveDot(mode):
-        mode.x += mode.dx
-        if (mode.x < 0) or (mode.x > mode.width): mode.dx = -mode.dx
-        mode.y += mode.dy
-        if (mode.y < 0) or (mode.y > mode.height): mode.dy = -mode.dy
-
-    def timerFired(mode):
-        mode.moveDot()
+        canvas.create_rectangle(100, 200, 700, 250, fill = "white")
 
     def mousePressed(mode, event):
-        d = ((mode.x - event.x)**2 + (mode.y - event.y)**2)**0.5
-        if (d <= mode.r):
-            mode.score += 1
-            mode.randomizeDot()
-        elif (mode.score > 0):
-            mode.score -= 1
+        if event.x >= 100 and event.x <= 700 \
+            and event.y >= 200 and event.y <= 250:
+            mode.userInput()
 
-    def keyPressed(mode, event):
-        if (event.key == 'h'):
-            mode.app.setActiveMode(mode.app.helpMode)
+    def timerFired(mode):
+        if mode.urlOrPath != None:
+            mode.app.setActiveMode(mode.app.patternMode)
+
+class PatternMode(Mode):
+    def appStarted(mode):
+        print(mode.app.urlOrPath)
 
     def redrawAll(mode, canvas):
-        font = 'Arial 26 bold'
-        canvas.create_text(mode.width/2, 20, text=f'Score: {mode.score}', font=font)
-        canvas.create_text(mode.width/2, 50, text='Click on the dot!', font=font)
-        canvas.create_text(mode.width/2, 80, text='Press h for help screen!', font=font)
-        canvas.create_oval(mode.x-mode.r, mode.y-mode.r, mode.x+mode.r, mode.y+mode.r,
-                           fill=mode.color)
-
-class HelpMode(Mode):
-    def redrawAll(mode, canvas):
-        font = 'Arial 26 bold'
-        canvas.create_text(mode.width/2, 150, text='This is the help screen!', font=font)
-        canvas.create_text(mode.width/2, 250, text='(Insert helpful message here)', font=font)
-        canvas.create_text(mode.width/2, 350, text='Press any key to return to the game!', font=font)
-
-    def keyPressed(mode, event):
-        mode.app.setActiveMode(mode.app.gameMode)
+        canvas.create_rectangle(0, 0, mode.width, mode.height, fill = "powder blue")
 
 class MyModalApp(ModalApp):
     def appStarted(app):
         app.titleScreenMode = TitleScreenMode()
         app.styleMode = StyleMode()
         app.urlAndPathMode = UrlAndPathMode()
-        app.gameMode = GameMode()
-        app.helpMode = HelpMode()
+        app.patternMode = PatternMode()
+        app.urlOrPath = UrlAndPathMode.userInput
         app.setActiveMode(app.titleScreenMode)
-        app.timerDelay = 50
 
 app = MyModalApp(width=800, height=500)
