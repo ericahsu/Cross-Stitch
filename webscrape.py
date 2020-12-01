@@ -1,43 +1,45 @@
+# Erica Hsu, 11/30/2020
+
 import requests
 import lxml.html as lh
 from bs4 import BeautifulSoup as bs
 import pandas as pd
 
-# "http://www.camelia.sk/dmc_5.htm"
-
-
 class dmcWebscrape(object):
     # Initialize values
     def __init__(self, url):
+        # Gets the text in the page
         self.page = requests.get(url).text
         self.soup = bs(self.page, "lxml")
 
-
+        # Get all of the page content
         self.page2 = requests.get(url)
         self.soup2 = bs(self.page2.content, 'lxml')
         self.bgcolorTableHeader = self.soup2.select('td[bgcolor]')
         self.bgcolorTable = self.bgcolorTableHeader[1::]
 
-        self.initialTable = None
-        self.tableOfValues = []
+        # Initiates variables
         self.tableNoWhitespace = []
-        self.hex = {'A': 10, 'B': 11, 'C': 12, 'D': 13, 'E': 14, 'F': 15, 
-                    'a': 10, 'b': 11, 'c': 12, 'd': 13, 'e': 14, 'f': 15, 
-                    '0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
-                    '7': 7, '8': 8, '9': 9}
         self.dmc = None
         self.colorNames = None
         self.rgbValues = []
 
+        # Dictionary of hex characters with the corresponding values
+        self.hex = {'A': 10, 'B': 11, 'C': 12, 'D': 13, 'E': 14, 'F': 15, 
+                    'a': 10, 'b': 11, 'c': 12, 'd': 13, 'e': 14, 'f': 15, 
+                    '0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+                    '7': 7, '8': 8, '9': 9}
+
     # Create the table of number and names
     def tableOfNumberAndNames(self):
-        self.initialTable = self.soup.find_all('font', {'face':"arial, helvetica, sans-serif", 'size':'2'})
-        length = len(self.initialTable)
+        tableOfValues = []
+        initialTable = self.soup.find_all('font', {'face':"arial, helvetica, sans-serif", 'size':'2'})
+        length = len(initialTable)
         for index in range(length):
-            self.tableOfValues.append(self.initialTable[index].text)
+            tableOfValues.append(initialTable[index].text)
 
         # Remove any whitespace from elements before appending to a new table
-        for item in self.tableOfValues[2:-1]:
+        for item in tableOfValues[2:-1]:
             if '\r\n' in item or "  " in item:
                 item = item.replace('\r\n', "")
                 item = self.removeWhitespace(item)
