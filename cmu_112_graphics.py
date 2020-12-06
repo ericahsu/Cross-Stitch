@@ -278,8 +278,8 @@ class App(object):
         return simpledialog.askstring('getUserInput', prompt)
 
     def loadImage(app, path=None):
-        if (app._canvas.inRedrawAll):
-            raise Exception('Cannot call loadImage in redrawAll')
+        # if (app._canvas.inRedrawAll):
+        #     raise Exception('Cannot call loadImage in redrawAll')
         if (path is None):
             path = filedialog.askopenfilename(initialdir=os.getcwd(), title='Select file: ',filetypes = (('Image files','*.png *.gif *.jpg'),('all files','*.*')))
             if (not path): return None
