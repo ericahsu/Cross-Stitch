@@ -81,6 +81,9 @@ class UrlAndPathMode(Mode):
         canvas.create_text(mode.width/2, mode.height/4, text = "Step 2: Type in the url or path to your image", font = "Verdana 30")
         canvas.create_rectangle(100, 200, 700, 250, fill = "white")
         canvas.create_text(400, 225, text = "Click here to type in your url or path", font = "Verdana 24")
+        # Back Button
+        canvas.create_rectangle(25, 25, 120, 60, fill = 'green')
+        canvas.create_text(72, 42, text = "Back")
 
     def mousePressed(mode, event):
         if event.x >= 100 and event.x <= 700 \
