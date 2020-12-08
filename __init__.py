@@ -6,7 +6,8 @@
 # cmu_112_graphics downloaded from 15-112 course website: https://www.cs.cmu.edu/~112/schedule.html
 from cmu_112_graphics import *
 import pandas as pd
-
+import time
+import math
 # Read in the csv file that has the record of patterns created
 history = pd.read_csv('history.csv')
 
@@ -43,35 +44,55 @@ class StyleMode(Mode):
     Mode.styleFull = None
     Mode.styleCenter = None
 
+    def appStarted(mode):
+        # Example images
+        mode.fullPhotoEx = mode.loadImage('fullphotoex.png')
+        mode.centerEx = mode.loadImage('centerex.png')
+
     def redrawAll(mode, canvas):
+        # Background and instructions
         canvas.create_rectangle(0, 0, mode.width, mode.height, fill = "powder blue")
-        canvas.create_text(mode.width/2, mode.height/4, text = "Step 1: Choose your style", font = "Verdana 36")
+        canvas.create_text(mode.width/2, mode.height/5, text = "Step 1: Choose your style", font = "Verdana 36")
+        # Resize image
+        maxwidth = 200
+        maxheight = 200
         # Full photo
-        canvas.create_rectangle(100, 200, 300, 250, fill = "lightpink")
-        canvas.create_text(200, 225, text = "Full Photo", font = "Verdana 24")
+        canvas.create_rectangle(100, 175, 300, 225, fill = "lightpink")
+        canvas.create_text(200, 200, text = "Full Photo", font = "Verdana 24")
+        # Full photo example 
+        ratio = min(maxwidth/mode.fullPhotoEx.width, maxheight/mode.fullPhotoEx.height)
+        mode.fullPhotoEx = mode.scaleImage(mode.fullPhotoEx, ratio)
+        canvas.create_image(200, 325, image=ImageTk.PhotoImage(mode.fullPhotoEx))
         # Center
-        canvas.create_rectangle(500, 200, 700, 250, fill = "lightpink")
-        canvas.create_text(600, 225, text = "Center", font = "Verdana 24")
+        canvas.create_rectangle(500, 175, 700, 225, fill = "lightpink")
+        canvas.create_text(600, 200, text = "Center", font = "Verdana 24")
+        # Center photo example
+        ratio = min(maxwidth/mode.centerEx.width, maxheight/mode.centerEx.height)
+        mode.centerEx = mode.scaleImage(mode.centerEx, ratio)
+        canvas.create_image(600, 325, image=ImageTk.PhotoImage(mode.centerEx))
 
     def mousePressed(mode, event):
         if event.x >= 100 and event.x <= 300 \
-            and event.y >= 200 and event.y <= 250:
+            and event.y >= 175 and event.y <= 225:
             StyleMode.full.append('True')
             StyleMode.centered.append('False')
             StyleMode.fav.append('False')
             StyleMode.styleFull = True
+            print('full')
             mode.app.setActiveMode(mode.app.urlAndPathMode)
         if event.x >= 500 and event.x <= 700 \
-            and event.y >= 200 and event.y <= 250:
+            and event.y >= 175 and event.y <= 225:
             StyleMode.full.append('False')
             StyleMode.centered.append('True')
             StyleMode.fav.append('False')
             StyleMode.styleCenter = True
+            print('center')
             mode.app.setActiveMode(mode.app.urlAndPathMode)
 
 class UrlAndPathMode(Mode):
     def appStarted(mode):
         mode.urlOrPath = None 
+        mode.error = False
 
     def userInput(mode):
         mode.urlOrPath = simpledialog.askstring('getUserInput', "url or path")
@@ -84,16 +105,33 @@ class UrlAndPathMode(Mode):
         # Back Button
         canvas.create_rectangle(25, 25, 120, 60, fill = 'green')
         canvas.create_text(72, 42, text = "Back")
-
+        # Error Message
+        if mode.error:
+            canvas.create_text(400, 275, text = "Error: That url or path does not exist. Please try again.", font = "Verdana 18", fill = "Red")
+        
     def mousePressed(mode, event):
         if event.x >= 100 and event.x <= 700 \
             and event.y >= 200 and event.y <= 250:
             mode.userInput()
+        if event.x >= 25 and event.x <= 120\
+            and event.y >= 25 and event.y <= 60:
+            StyleMode.originalImage = StyleMode.history['Original Image'].tolist()
+            StyleMode.pixelated = StyleMode.history['Pixelated Image'].tolist()
+            StyleMode.full = StyleMode.history['Full Photo'].tolist()
+            StyleMode.centered = StyleMode.history['Centered'].tolist()
+            StyleMode.fav = StyleMode.history['Favorites'].tolist()
+            StyleMode.styleFull = None
+            StyleMode.styleCenter = None
+            mode.app.setActiveMode(mode.app.styleMode)
 
     def timerFired(mode):
         if mode.urlOrPath != None:
-            PatternMode(mode.urlOrPath)
-            mode.app.setActiveMode(PatternMode(mode.urlOrPath))
+            try:
+                mode.loadImage(mode.urlOrPath)
+                PatternMode(mode.urlOrPath)
+                mode.app.setActiveMode(PatternMode(mode.urlOrPath))
+            except:
+                mode.error = True
 
 class PatternMode(Mode):
 
@@ -114,13 +152,7 @@ class PatternMode(Mode):
         mode.rgb = mode.dmcTable['RGB']
         mode.dmc = mode.dmcTable['DMC']
         mode.colorName = mode.dmcTable['Color']
-        # Image
-        mode.image1 = mode.loadImage(mode.urlOrPath)
-        mode.image2 = mode.scaleImage(mode.image1, 2/3)
-        mode.image3 = Image.new("L", size=mode.image1.size)
-        mode.image4 = Image.new("L", size=mode.image1.size)
-        mode.image1 = mode.image1.convert('RGB')
-        mode.image2 = Image.new(mode='RGB', size=mode.image1.size)
+
         mode.imageResult = None
         mode.countOfRgb = {}
         mode.dmcOfImage = {}
@@ -130,10 +162,21 @@ class PatternMode(Mode):
         mode.mapOfRgbPix = []
         mode.horizontalFilter = [[-1,0,1], [-2,0,2], [-1,0,1]]
         mode.verticalFilter = [[-1,-2,-1], [0,0,0], [1,2,1]]
+        mode.frame = None
+        mode.time = 0
+        mode.destroy = False
+        # Image
+        mode.image1 = mode.loadImage(mode.urlOrPath)
+        mode.image2 = mode.scaleImage(mode.image1, 2/3)
+        mode.image3 = Image.new("L", size=mode.image1.size)
+        mode.image4 = Image.new("L", size=mode.image1.size)
+        mode.image1 = mode.image1.convert('RGB')
+        mode.image2 = Image.new(mode='RGB', size=mode.image1.size)
         if StyleMode.styleFull:
             mode.result = mode.mapOfRgbValues(mode.image1)
         elif StyleMode.styleCenter:
             mode.result = mode.centerImage()
+
 
     # Multiplies the two matrices given
     def multiplyMatrices(mode, m1, m2):
@@ -301,6 +344,12 @@ class PatternMode(Mode):
             result = result + thread + '\n'
         return result
 
+    # def drawGridLines(mode, canvas):
+    #     for x in range(50, 351, 4):
+    #         canvas.create_line(x, 100, x, 400)
+    #     for y in range(100, 401, 4):
+    #         canvas.create_line(50, y, 350, y)
+
     def redrawAll(mode, canvas):
         canvas.create_rectangle(0, 0, mode.width, mode.height, fill = "powder blue")
         # Resize image
@@ -309,15 +358,107 @@ class PatternMode(Mode):
         ratio = min(maxwidth/mode.imageResult.width, maxheight/mode.imageResult.height)
         mode.imageResult = mode.scaleImage(mode.imageResult, ratio)
         canvas.create_image(200, 250, image=ImageTk.PhotoImage(mode.imageResult))
-        frame = Frame(canvas, height = 300, width = 300)
-        frame.pack(expand = False)
-        frame.place(x=400, y=100)
-        frame.pack_propagate(0)
-        # text window
-        text=Text(frame, width=100, height=150, font='Arial 18',\
-                    spacing1=5, spacing2=5, wrap=WORD)
-        text.pack(side=RIGHT)
-        text.insert(END, f"{mode.listOfThread()}")
+        
+        #xmode.drawGridLines(canvas)
+        # Frame for list of threads
+        if mode.destroy == False:
+            mode.frame = Frame(canvas, height = 300, width = 300)
+            mode.frame.pack(expand = False)
+            mode.frame.place(x=400, y=100)
+            mode.frame.pack_propagate(0)
+            # text window
+            text=Text(mode.frame, width=100, height=150, font='Arial 18',\
+                        spacing1=5, spacing2=5, wrap=WORD)
+            text.pack(side=RIGHT)
+            text.insert(END, f"{mode.listOfThread()}")
+            text.config(state = "disabled")
+            mode.frame.destroy()
+
+    def mousePressed(mode, event):
+        if event.x >= 50 and event.x <= 350\
+            and event.y >= 100 and event.y <= 400:
+            mode.destroy = True
+            mode.app.setActiveMode(mode.app.patternOnlyMode)
+
+class PatternOnlyMode(Mode):
+    def appStarted(mode):
+        mode.imageResult = mode.loadImage(f'result{StyleMode.index}.png')
+        mode.ratio = None
+        mode.singleColor = False
+        mode.colorCodeOrName = None
+        mode.originalRgb = None
+        mode.newRgb = None
+
+        mode.dmcTable = pd.read_csv('dmctable.csv')
+        mode.rgb = mode.dmcTable['RGB']
+        mode.dmc = mode.dmcTable['DMC']
+        mode.colorName = mode.dmcTable['Color']
+
+    # Finds the color at a given x, y point after scaling the image
+    def findColor(mode, x, y):
+        mode.imageResult = mode.scaleImage(mode.imageResult, 1/mode.ratio)
+        x = int(x * (1/mode.ratio))
+        y = int(y * (1/mode.ratio))
+        r,g,b = mode.imageResult.getpixel((x,y))
+        return r, g, b
+
+    def oneColorImage(mode, image, rgb):
+        for x in range(mode.imageResult.width):
+            for y in range(mode.imageResult.height):
+                if mode.imageResult.getpixel((x,y)) != rgb:
+                    mode.imageResult.putpixel((x, y), (255, 255, 255))
+
+    def userInput(mode):
+        mode.colorCodeOrName = simpledialog.askstring('getUserInput', "Color code or name")
+
+    def replaceColor(mode):
+        for index in range(len(mode.dmc)):
+            if mode.dmc[index] == mode.colorCodeOrName:
+                mode.newRgb = mode.rgb[index]
+                break
+        for x in range(mode.imageResult.width):
+            for y in range(mode.imageResult.height):
+                if mode.imageResult.getpixel((x, y)) == mode.originalRgb:
+                    mode.imageResult.putpixel((x, y), eval(mode.newRgb))
+
+    def mousePressed(mode, event):
+        width = mode.image.width
+        height = mode.image.height
+        borderx = (500 - width)/2
+        bordery = (500 - height)/2
+        if event.x >= 50 + borderx and event.x <= 550 - borderx\
+            and event.y >= bordery and event.y <= 500 - bordery:
+            if mode.singleColor == False:
+                mode.singleColor = True
+                mode.originalRgb = mode.findColor(event.x - (borderx + 50), event.y - (bordery))
+                mode.oneColorImage(mode.imageResult, mode.originalRgb)
+                print(mode.originalRgb)
+            elif mode.singleColor == True:
+                mode.singleColor = False
+                mode.imageResult = mode.loadImage(f'result{StyleMode.index}.png')
+        # Click on search bar
+        elif event.x >= 600 and event.x <= 750 \
+            and event.y >= 125 and event.y <= 150:
+            mode.userInput()
+        elif event.x >= 625 and event.y <= 725\
+            and event.y >= 50 and event.y <= 100\
+            and mode.originalRgb != None and mode.colorCodeOrName != None:
+            mode.replaceColor()
+
+    def redrawAll(mode, canvas):
+        # Draws the background and image
+        canvas.create_rectangle(0, 0, mode.width, mode.height, fill = "powder blue")
+        maxwidth = 500
+        maxheight = 500
+        mode.ratio = min(maxwidth/mode.imageResult.width, maxheight/mode.imageResult.height)
+        mode.image = mode.scaleImage(mode.imageResult, mode.ratio)
+        canvas.create_image(300, 250, image=ImageTk.PhotoImage(mode.image))
+        # Change color
+        canvas.create_rectangle(625, 50, 725, 100, fill = "purple")
+        canvas.create_text(675, 75, text = "Change Color")
+        # Type in color name or code
+        canvas.create_rectangle(600, 125, 750, 150, fill = "white")
+        canvas.create_text(675, 138, text = "Click to type")
 
 class HistoryMode(Mode):
     def appStarted(mode):
@@ -325,6 +466,8 @@ class HistoryMode(Mode):
         mode.full = False
         mode.center = False
         mode.image = None
+        mode.imagecx = 350
+        mode.imagecy = 150
 
     def images(mode, imageName):
         mode.image = mode.loadImage(imageName)
@@ -334,8 +477,8 @@ class HistoryMode(Mode):
         mode.image = mode.scaleImage(mode.image, ratio)
             
     def drawFilterImage(mode, canvas, filter = None, filter2 = None, filter3 = None):
-        imagecx = 350
-        imagecy = 150
+        imagecx = mode.imagecx
+        imagecy = mode.imagecy
         x1, y1, x2, y2 = (250, 50, 450, 250)
         for i in range(len(StyleMode.originalImage)):
             if filter == None:
@@ -427,6 +570,16 @@ class HistoryMode(Mode):
             and event.y >= 100 and event.y <= 110:
             mode.full = not mode.full
 
+    def keyPressed(mode, event):
+        if event.key == 'Left':
+            mode.imagecy += 250
+            if mode.imagecy > 250:
+                mode.imagecy -= 250
+        elif event.key == 'Right':
+            mode.imagecy -= 250
+            if mode.imagecy < -250 * math.ceil(StyleMode.index/4):
+                mode.imagecy += 250
+
     def redrawAll(mode, canvas):
         canvas.create_rectangle(0, 0, mode.width, mode.height, fill = "powder blue")
         # Filter
@@ -453,6 +606,7 @@ class MyModalApp(ModalApp):
         app.styleMode = StyleMode()
         app.urlAndPathMode = UrlAndPathMode()
         app.historyMode = HistoryMode()
+        app.patternOnlyMode = PatternOnlyMode()
         app.setActiveMode(app.titleScreenMode)
         
 
