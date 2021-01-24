@@ -3,18 +3,13 @@ The user will be able to upload an image by pasting in the pathname or a url. Th
 
 How to run:
 Run webscrape.py and history.py first. Then run __init__.py.
-It can take up to ~1 minute for the pattern to load depending on the size of the image.
+It can take up to a few minutes for the pattern to load depending on the size of the image.
 
 
 Libraries that need to be installed:
 Beautiful Soup, pandas, requests
 
 Additional Citations:
-
-Images seen in the video:
-https://images.pexels.com/photos/736230/pexels-photo-736230.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500
-https://cdn.pixabay.com/photo/2015/04/19/08/33/flower-729512__340.jpg
-testImage2.gif from https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html
 
 Images used for the title screen:
 https://lh3.googleusercontent.com/proxy/J5-NmlO8ibIWWTiPMBTGy9OVUGtbLTqiTkeWAFmo9G4M59GE6aYrVjBarzxKZw9h54Un-euNN-5lggfOiBHR5QuQnvJ6nFoZUg
